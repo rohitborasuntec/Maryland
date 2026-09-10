@@ -38,7 +38,7 @@ FONT_FAMILY = "Segoe UI"
 
 # Window size - larger for better spacing
 INITIAL_WIDTH = 1500
-INITIAL_HEIGHT = 1800
+INITIAL_HEIGHT = 1500
 MIN_WIDTH = 1200
 MIN_HEIGHT = 800
 

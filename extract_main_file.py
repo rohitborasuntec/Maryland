@@ -32,6 +32,7 @@ from parsel import Selector
 from playwright.async_api import async_playwright
 from commons import get_proxy_settings
 from search_logger import get_logger, log_event
+from modified_script import process_rows
 
 # ----------------------------------------------------------------------------
 # Config
@@ -310,6 +311,10 @@ def is_rate_limited(sel):
     """Check if the page contains rate limiting message."""
     return bool(
         sel.xpath('//*[contains(text(),"You have exceeded the allowable rate of page requests")]')
+        or 
+        sel.xpath('//*[contains(text(),"An unexpected error has occured on this website")]')
+        
+        
     )
 
 
@@ -496,36 +501,37 @@ async def run_scraper_async(start, end, input_csv, data_csv, status_csv, headles
             try:
                 sel = None
 
-                if use_playwright:
+                # if use_playwright:
                     # We're in a rate-limit cooldown window - go straight to Playwright
-                    log_event(f"[MODE] Cooldown active ({playwright_rows_left} rows left) - using Playwright directly for RecordId={record_id}", level="info")
-                    page_source = await fetch_via_playwright(url, headless)
-                    sel = Selector(text=page_source)
-                    playwright_rows_left -= 1
-                    if playwright_rows_left <= 0:
-                        use_playwright = False
-                        log_event("[MODE] Cooldown finished - switching back to REQUEST-first mode", level="info")
-                else:
-                    # Normal path: ALWAYS try request method first
-                    try:
-                        resp = fetch_via_requests(url)
-                        if resp.status_code == 200:
-                            sel = Selector(text=resp.text)
-                            log_event(f"[REQUEST] Using request-method content for RecordId={record_id} (status=200)", level="debug")
+                log_event(f"[MODE] Cooldown active ({playwright_rows_left} rows left) - using Playwright directly for RecordId={record_id}", level="info")
+                page_source = await fetch_via_playwright(url, headless)
+                sel = Selector(text=page_source)
+                # playwright_rows_left -= 1
+                # if playwright_rows_left <= 0:
+                    # use_playwright = False
+                    # log_event("[MODE] Cooldown finished - switching back to REQUEST-first mode", level="info")
+                # else:
+                #     # Normal path: ALWAYS try request method first
+                #     try:
+                #         resp = fetch_via_requests(url)
+                #         if resp.status_code == 200:
+                #             sel = Selector(text=resp.text)
+                #             log_event(f"[REQUEST] Using request-method content for RecordId={record_id} (status=200)", level="debug")
                             
-                        else:
-                            log_event(f"[REQUEST] Non-200 status ({resp.status_code}) for RecordId={record_id}", level="warning")
-                            request_failures += 1
-                            sel = Selector(text=resp.text)  # still parse it; might just be a non-200 error page we can check for rate limit
-                    except Exception as e:
-                        log_event(f"[REQUEST] Exception during request fetch for RecordId={record_id}: {str(e)}", level="warning")
-                        request_failures += 1
-                        sel = None  # force retry / fallback below
+                #         else:
+                #             log_event(f"[REQUEST] Non-200 status ({resp.status_code}) for RecordId={record_id}", level="warning")
+                #             request_failures += 1
+                #             sel = Selector(text=resp.text)  # still parse it; might just be a non-200 error page we can check for rate limit
+                #     except Exception as e:
+                #         log_event(f"[REQUEST] Exception during request fetch for RecordId={record_id}: {str(e)}", level="warning")
+                #         request_failures += 1
+                #         sel = None  # force retry / fallback below
                 
                 # detect rate limiting -> this is the ONLY trigger for switching to Playwright mode
                 if is_rate_limited(sel):
                     rate_limit_count += 1
                     log_event(f"[RATE-LIMIT] Detected for RecordId={record_id}. Falling back to Playwright for this record and enabling cooldown ({PLAYWRIGHT_COOLDOWN} rows).", level="warning")
+                    time.sleep(random.uniform(10,30))
                     page_source = await fetch_via_playwright(url, headless)
                     sel = Selector(text=page_source)
                     use_playwright = True
@@ -685,6 +691,9 @@ def run_main_data_scraper(start=None, end=None, headless=False, params=None):
             total_results = len(results)
 
             log_event(f"Scraper completed successfully with {total_results} results", level="info")
+            log_event(f"It's Time to clean data", level="info")
+            process_rows(results,data_csv)
+            log_event(f"Cleaning Done", level="info")
 
             return {
                 "success": True,

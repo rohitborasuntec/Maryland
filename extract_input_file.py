@@ -304,8 +304,15 @@ def grabbing_links(page):
                 page_items = []
                 for row in rows:
                     cells = row.query_selector_all(":scope > td")
-                    prob_link = "https://registers.maryland.gov/RowNetWeb/Estates/" + cells[1].query_selector("a").get_attribute("href") or "",
                     if len(cells) >= 6:
+                        # FIX: no trailing comma — prob_link must be a string,
+                        # not a 1-element tuple, or drop_duplicates() will
+                        # collapse unrelated rows that happen to share the
+                        # same href.
+                        href = cells[1].query_selector("a").get_attribute("href") or ""
+                        prob_link = (
+                            "https://registers.maryland.gov/RowNetWeb/Estates/" + href
+                        )
                         items = {
                             "country": cells[0].text_content() or "",
                             "estate": cells[1].query_selector("a").text_content() or "",
@@ -313,7 +320,7 @@ def grabbing_links(page):
                             "date_of_death": cells[3].text_content() or "",
                             "typee": cells[4].text_content() or "",
                             "status": cells[5].text_content() or "",
-                            "prob_link": prob_link ,
+                            "prob_link": prob_link,
                         }
                         page_items.append(items)
                 res.extend(page_items)
@@ -392,7 +399,7 @@ def run_estate_search(params):
         browser, context, page = create_browser(headless=headless, playwright_instance=p)
         
         try:
-            for idx, (county, status, etype) in enumerate(combinations, start=1):
+            for idx, (county, status, etype) in enumerate(combinations, start=0):
                 print(
                     f"\n[{idx}/{len(combinations)}] County='{county or 'Any'}' "
                     f"Status='{status or 'Any'}' Type='{etype or 'Any'}'"
@@ -421,8 +428,22 @@ def run_estate_search(params):
             
             if all_results:
                 final_df = pd.concat(all_results, ignore_index=True)
-                if "prob_link" in final_df.columns:
-                    final_df = final_df.drop_duplicates(subset=["prob_link"])
+                # FIX: Only dedup when we actually ran multiple filter
+                # combinations, since that's the only case where the same
+                # estate can legitimately show up more than once. For a
+                # single combination the grid already returns disjoint
+                # pages, and prob_link is not guaranteed unique on this
+                # site (ASP.NET postback hrefs repeat across rows), so
+                # deduping here was silently dropping real records.
+                if len(combinations) > 1:
+                    key_cols = [c for c in ("estate", "filling_date", "date_of_death", "prob_link")
+                                if c in final_df.columns]
+                    if key_cols:
+                        before = len(final_df)
+                        final_df = final_df.drop_duplicates(subset=key_cols)
+                        removed = before - len(final_df)
+                        if removed:
+                            print(f"  Deduped {removed} overlapping record(s) across combinations.")
             else:
                 final_df = pd.DataFrame()
             

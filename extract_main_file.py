@@ -695,7 +695,6 @@ def run_main_data_scraper(start=None, end=None, headless=False, params=None):
 
             log_event(f"Scraper completed successfully with {total_results} results", level="info")
             log_event(f"It's Time to clean data", level="info")
-            
             process_rows(results,data_csv)
             log_event(f"Cleaning Done", level="info")
 

@@ -5,7 +5,7 @@ import re
 
 
 
-def save_csv(file_path):
+def save_csv(df,file_path):
     df.to_csv(file_path, index=False)
     print("File has been saved")
 
@@ -80,7 +80,7 @@ def safe_literal_eval(value):
     Safely convert a string representation of a Python list
     into an actual list.
     """
-
+    value = str(value)
     if pd.isna(value):
         return []
 
@@ -98,11 +98,12 @@ def safe_literal_eval(value):
     except (ValueError, SyntaxError):
         return []
 
-def process_rows(df,file_path):
+def process_rows(results,file_path):
     try:
-        df = pd.DataFrame(df)
+        df = pd.DataFrame(results)
     except:
         pass
+    
     for index, row in df.iterrows():
 
         # Only process OPEN records
@@ -120,7 +121,6 @@ def process_rows(df,file_path):
         # ============================================================
         # PERSONAL REPRESENTATIVES
         # ============================================================
-
         prep_reps = safe_literal_eval(row.get("Personal Reps", ""))
 
         print("Personal Reps:", prep_reps)
@@ -234,14 +234,14 @@ def process_rows(df,file_path):
             # NAME + ADDRESS
             i += 2
 
-    save_csv(file_path)
+    save_csv(df,file_path)
 # ================================================================
 # SAVE ONLY ONCE AFTER ALL ROWS ARE PROCESSED (already outside the loop)
 # ================================================================
 
 if __name__ == "__main__":
-    INPUT_FILE = r'output/Test Data.csv'
-    OUTPUT_FILE = r'output/Modified_test.csv'
+    INPUT_FILE = r'Output/Complete_data_maryland_final_20260910_130916_3_5.csv'
+    OUTPUT_FILE = r'Output/Complete_data_maryland_final_20260910_130916_3_5.csv'
 
     df = pd.read_csv(INPUT_FILE)
 

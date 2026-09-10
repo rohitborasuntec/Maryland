@@ -31,9 +31,12 @@ import pandas as pd
 from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
 from commons import get_proxy_settings
 
-OUTPUT_DIR = "Output"
+# OUTPUT_DIR = "Output"
+TEMP_DIR = "Temp"
 SEARCH_URL = "https://registers.maryland.gov/RowNetWeb/Estates/frmEstateSearch2.aspx"
+INPUT_DIR = "Input"
 
+os.makedirs(INPUT_DIR, exist_ok=True)
 # load_dotenv()
 # ---------------------------------------------------------------------------
 # Proxy helper
@@ -373,7 +376,7 @@ def run_estate_search(params):
         print(f"[error] {msg}")
         return {"success": False, "error": msg}
     
-    os.makedirs(OUTPUT_DIR, exist_ok=True)
+    os.makedirs(TEMP_DIR, exist_ok=True)
     
     county_list = params.get("county") or [""]
     status_list = params.get("estate_status") or [""]
@@ -424,8 +427,10 @@ def run_estate_search(params):
                 final_df = pd.DataFrame()
             
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            output_file = os.path.join(OUTPUT_DIR, f"estate_search_results_{timestamp}.csv")
+            output_file = os.path.join(TEMP_DIR, f"estate_search_results_{timestamp}.csv")
+            input_file = os.path.join(INPUT_DIR, "estate_search_results.csv")
             final_df.to_csv(output_file, index=False, encoding="utf-8")
+            final_df.to_csv(input_file, index=False, encoding="utf-8")
             
             print(f"\nSaved {len(final_df)} total record(s) to {output_file}")
             return {"success": True, "total_results": len(final_df), "output_file": output_file}

@@ -37,6 +37,7 @@ SEARCH_URL = "https://registers.maryland.gov/RowNetWeb/Estates/frmEstateSearch2.
 INPUT_DIR = "Input"
 
 os.makedirs(INPUT_DIR, exist_ok=True)
+os.makedirs(TEMP_DIR, exist_ok=True)
 # load_dotenv()
 # ---------------------------------------------------------------------------
 # Proxy helper
@@ -321,6 +322,7 @@ def grabbing_links(page):
                             "typee": cells[4].text_content() or "",
                             "status": cells[5].text_content() or "",
                             "prob_link": prob_link,
+                            "page_no":current_page,
                         }
                         page_items.append(items)
                 res.extend(page_items)
@@ -394,12 +396,13 @@ def run_estate_search(params):
     
     headless = params.get("headless", False)
     all_results = []
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     
     with sync_playwright() as p:
         browser, context, page = create_browser(headless=headless, playwright_instance=p)
         
         try:
-            for idx, (county, status, etype) in enumerate(combinations, start=0):
+            for idx, (county, status, etype) in enumerate(combinations, start=1):
                 print(
                     f"\n[{idx}/{len(combinations)}] County='{county or 'Any'}' "
                     f"Status='{status or 'Any'}' Type='{etype or 'Any'}'"
@@ -422,6 +425,9 @@ def run_estate_search(params):
                         df["search_type"] = etype
                         all_results.append(df)
                     print(f"  -> {len(df)} record(s) for this combination.")
+                    output_file = os.path.join(TEMP_DIR, f"estate_search_results_{timestamp}.csv")
+                    
+                    df.to_csv(output_file, index=False, encoding="utf-8")
                 except Exception as exc:
                     print(f"  [warn] Combination failed, skipping: {exc}")
                     continue
@@ -435,19 +441,18 @@ def run_estate_search(params):
                 # pages, and prob_link is not guaranteed unique on this
                 # site (ASP.NET postback hrefs repeat across rows), so
                 # deduping here was silently dropping real records.
-                if len(combinations) > 1:
-                    key_cols = [c for c in ("estate", "filling_date", "date_of_death", "prob_link")
-                                if c in final_df.columns]
-                    if key_cols:
-                        before = len(final_df)
-                        final_df = final_df.drop_duplicates(subset=key_cols)
-                        removed = before - len(final_df)
-                        if removed:
-                            print(f"  Deduped {removed} overlapping record(s) across combinations.")
+                # if len(combinations) > 1:
+                #     key_cols = [c for c in ("estate", "filling_date", "date_of_death", "prob_link")
+                #                 if c in final_df.columns]
+                #     if key_cols:
+                #         before = len(final_df)
+                #         final_df = final_df.drop_duplicates(subset=key_cols)
+                #         removed = before - len(final_df)
+                #         if removed:
+                #             print(f"  Deduped {removed} overlapping record(s) across combinations.")
             else:
                 final_df = pd.DataFrame()
             
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             output_file = os.path.join(TEMP_DIR, f"estate_search_results_{timestamp}.csv")
             input_file = os.path.join(INPUT_DIR, "estate_search_results.csv")
             final_df.to_csv(output_file, index=False, encoding="utf-8")

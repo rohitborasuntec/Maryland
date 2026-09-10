@@ -38,6 +38,7 @@ from modified_script import process_rows
 # Config
 # ----------------------------------------------------------------------------
 OUTPUT_DIR = "Output"
+INPUT_DIR = "Input"
 SAVE_EVERY = 50          # write to disk after this many new records
 PLAYWRIGHT_COOLDOWN = 15 # once rate-limited, stay on playwright this many rows
 MAX_RETRIES = 3          # maximum retries for failed requests
@@ -373,6 +374,7 @@ def extract_fields(sel, row):
 def save_progress(f_res, urls_dfn, file_path=None):
     """Overwrite both output files with current in-memory state."""
     global _data_csv, _status_csv, _start_index, _end_index
+    urls_dfn.to_csv(file_path, index=False)
 
     try:
         if f_res and _data_csv:
@@ -381,7 +383,7 @@ def save_progress(f_res, urls_dfn, file_path=None):
             log_event(f"Saved {len(f_res)} records to {_data_csv}", level="debug")
 
         if _status_csv:
-            urls_dfn.to_csv(_status_csv, index=False)
+            urls_dfn.to_csv(file_path, index=False)
             log_event(f"Saved status to {_status_csv}", level="debug")
     except Exception as e:
         error_msg = f"Error saving progress: {str(e)}"
@@ -550,7 +552,8 @@ async def run_scraper_async(start, end, input_csv, data_csv, status_csv, headles
                 estate_num = items.get('Estate Number', 'Unknown')
                 log_event(f"✓ Processed: {decedent_name} (Estate: {estate_num}, RecordId={record_id})", level="info")
                 success = True
-
+                urls_dfn.to_csv(_input_csv,index=False)
+                log_event(f"File Saved")
             except Exception as e:
                 error_count += 1
                 retry_count += 1
@@ -659,7 +662,7 @@ def run_main_data_scraper(start=None, end=None, headless=False, params=None):
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
         # Define file paths with the range and timestamp
-        input_csv = os.path.join(OUTPUT_DIR, "estate_search_results.csv")
+        input_csv = os.path.join(INPUT_DIR, "estate_search_results.csv")
         data_csv = os.path.join(OUTPUT_DIR, f"Complete_data_maryland_final_{timestamp}_{start}_{end}.csv")
         status_csv = os.path.join(OUTPUT_DIR, f"final_merged_data_with_status_{timestamp}_{start}_{end}.csv")
 
@@ -692,6 +695,7 @@ def run_main_data_scraper(start=None, end=None, headless=False, params=None):
 
             log_event(f"Scraper completed successfully with {total_results} results", level="info")
             log_event(f"It's Time to clean data", level="info")
+            
             process_rows(results,data_csv)
             log_event(f"Cleaning Done", level="info")
 

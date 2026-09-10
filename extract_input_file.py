@@ -293,7 +293,27 @@ def grabbing_links(page):
     res = []
     scraped = 0
     print(f"  Total pages to scrape: {max_page}")
-    
+    # if current_page != 0:
+        
+    #     while True:
+    #         time.sleep(3)
+    #         try:
+    #             link = page.query_selector(f"//tr[@class='grid-pager']/td/a[normalize-space()='{current_page}']")    
+    #             if link:
+    #                 break
+    #         except:
+    #             print("Not found")
+    #         try:
+    #             dots = page.query_selector_all("//a[contains(text(),'...')]")
+    #             if dots:
+    #                 dots[-1].click()
+    #                 clicked = True
+    #             else:
+    #                 print(f"  [warn] No '...' link and page {next_num} not visible — stopping.")
+    #                 break
+    #         except Exception as e:
+    #             raise Exception("Error ", e)
+            
     while current_page <= max_page:
         for i in range(5):
             try:
